@@ -4,6 +4,26 @@ namespace GameOfLife
     {
         public int Width { get; }
         public int Height { get; }
+
+        public int Population
+        {
+            get
+            {
+                var val = 0;
+                for (var x = 0; x < Width; x++)
+                {
+                    for (var y = 0; y < Height; y++)
+                    {
+                        if (IsAlive(x, y))
+                        {
+                            val++;
+                        }
+                    }
+                }
+                return val;
+            }
+        }
+
         private bool[] _cells;
 
         public World(int width, int height)
@@ -86,7 +106,7 @@ namespace GameOfLife
 
         private bool TryNormalizeCoords(int x, int y, out int index)
         {
-            if ( x < 0 || x >= Width || y < 0 || y >= Height)
+            if (x < 0 || x >= Width || y < 0 || y >= Height)
             {
                 index = -1;
                 return false;

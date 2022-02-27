@@ -92,7 +92,25 @@ namespace GameOfLife
         private static void DrawFrame(string frame)
         {
             Console.SetCursorPosition(0, 0);
-            Console.Write(frame);
+            Console.Write(ClampFrameDimensions(frame, Console.WindowWidth, Console.WindowHeight - 1));
+        }
+
+        private static string ClampFrameDimensions(string frame, int maxWidth, int maxHeight)
+        {
+            var clamped = new StringBuilder();
+
+            var lines = 0;
+            foreach (var line in frame.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None))
+            {
+                if (lines >= maxHeight)
+                {
+                    break;
+                }
+                clamped.AppendLine(line.Length > maxWidth ? line.Substring(0, maxWidth) : line);
+                lines++;
+            }
+
+            return clamped.ToString();
         }
 
         private static void Tick()

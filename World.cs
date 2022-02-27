@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace GameOfLife
 {
     public sealed class World
@@ -24,18 +26,18 @@ namespace GameOfLife
             }
         }
 
-        private bool[] _cells;
+        private BitArray _cells;
 
         public World(int width, int height)
         {
             Width = width;
             Height = height;
-            _cells = new bool[Width * Height];
+            _cells = new BitArray(Width * Height);
         }
 
         public void Tick()
         {
-            var nextGeneration = new bool[_cells.Length];
+            var nextGeneration = new BitArray(_cells.Length);
 
             for (var i = 0; i < _cells.Length; i++)
             {

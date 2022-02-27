@@ -1,10 +1,13 @@
-﻿using System.Text;
+﻿using System.Collections.Concurrent;
+using System.Text;
 
 namespace GameOfLife
 {
     public sealed class Program
     {
         private static int _tick = 0;
+        private static bool _doExit = false;
+        private static ConcurrentQueue<ConsoleKeyInfo> _keyBuffer = new ConcurrentQueue<ConsoleKeyInfo>();
         private static readonly List<int> _populationHistory = new List<int>();
         private static readonly World _world = BuildWorld();
 
@@ -16,7 +19,9 @@ namespace GameOfLife
 
         private static void RunGame()
         {
-            while (true)
+            BufferInput();
+
+            while (!_doExit)
             {
                 Bookkeeping();
                 DrawFrame(BuildFrame());
@@ -24,6 +29,8 @@ namespace GameOfLife
 
                 // Slow down to let people watch
                 Thread.Sleep(10);
+
+                FlushInput();
             }
         }
 
@@ -52,6 +59,32 @@ namespace GameOfLife
             }
 
             return world;
+        }
+
+        private static void BufferInput()
+        {
+            Task.Factory.StartNew(() =>
+            {
+                while (true)
+                {
+                    _keyBuffer.Enqueue(Console.ReadKey(true));
+                }
+            });
+        }
+
+        private static void FlushInput()
+        {
+            while(_keyBuffer.TryDequeue(out var keyInfo))
+            {
+                switch(keyInfo.KeyChar)
+                {
+                    case 'q':
+                        _doExit = true;
+                        return;
+                    default:
+                        break;
+                }
+            }
         }
 
         private static void Bookkeeping()

@@ -7,6 +7,7 @@ namespace GameOfLife
     {
         private static int _tick = 0;
         private static bool _doExit = false;
+        private static int _speed = 1; 
         private static ConcurrentQueue<ConsoleKeyInfo> _keyBuffer = new ConcurrentQueue<ConsoleKeyInfo>();
         private static readonly List<int> _populationHistory = new List<int>();
         private static readonly World _world = BuildWorld();
@@ -26,10 +27,7 @@ namespace GameOfLife
                 Bookkeeping();
                 DrawFrame(BuildFrame());
                 Tick();
-
-                // Slow down to let people watch
-                Thread.Sleep(10);
-
+                HoldFrame();
                 FlushInput();
             }
         }
@@ -70,6 +68,12 @@ namespace GameOfLife
                     case 'c':
                         KillEverything(_world);
                         break;
+                    case '+':
+                        GoFaster();
+                        break;
+                    case '-':
+                        GoSlower();
+                        break;
                     default:
                         break;
                 }
@@ -78,6 +82,11 @@ namespace GameOfLife
 
         private static void Bookkeeping()
         {
+            if (_speed <= 0)
+            {
+                return;
+            }
+
             _populationHistory.Add(_world.Population);
         }
 
@@ -99,8 +108,9 @@ namespace GameOfLife
 
             frame.AppendLine();
             frame.AppendLine($"tick:             {AlignRight(_tick)}");
+            frame.AppendLine($"speed:            {AlignRight(_speed)}");
             frame.AppendLine();
-            frame.AppendLine($"population:       {AlignRight(_populationHistory[_tick])}");
+            frame.AppendLine($"population:       {AlignRight(_world.Population)}");
             frame.AppendLine($"rolling avg-3:    {AlignRight((int)_populationHistory.TakeLast(3).Average())}");
             frame.AppendLine($"rolling avg-5:    {AlignRight((int)_populationHistory.TakeLast(5).Average())}");
             frame.AppendLine($"rolling avg-10:   {AlignRight((int)_populationHistory.TakeLast(10).Average())}");
@@ -137,8 +147,40 @@ namespace GameOfLife
 
         private static void Tick()
         {
+            if (_speed <= 0)
+            {
+                return;
+            }
+
             _world.Tick();
             _tick++;
+        }
+
+        private static void HoldFrame()
+        {
+            var speedDelayMillisecondsMap = new[] { 1000, 1000, 500, 250, 100, 10 };
+
+            // Slow down to let people watch
+            Thread.Sleep(speedDelayMillisecondsMap[_speed]);
+        }
+
+        private static void GoSlower() => _speed = ClampSpeed(_speed - 1);
+
+        private static void GoFaster() => _speed = ClampSpeed(_speed + 1);
+
+        private static int ClampSpeed(int speed)
+        {
+            if (speed < 0)
+            {
+                return 0;
+            }
+
+            if (speed > 5)
+            {
+                return 5;
+            }
+
+            return speed;
         }
 
         private static void SpawnNoise(World world)

@@ -37,27 +37,7 @@ namespace GameOfLife
         private static World BuildWorld()
         {
             var world = new World(100, 25);
-
-            // Build a glider
-            // world.MakeAlive(1, 0);
-            // world.MakeAlive(2, 1);
-            // world.MakeAlive(0, 2);
-            // world.MakeAlive(1, 2);
-            // world.MakeAlive(2, 2);
-
-            // Build random life
-            var rng = new Random();
-            for (var x = 0; x < world.Width; x++)
-            {
-                for (var y = 0; y < world.Height; y++)
-                {
-                    if (rng.Next(2) > 0)
-                    {
-                        world.MakeAlive(x, y);
-                    }
-                }
-            }
-
+            SpawnNoise(world);
             return world;
         }
 
@@ -81,6 +61,15 @@ namespace GameOfLife
                     case 'q':
                         _doExit = true;
                         return;
+                    case 'g':
+                        SpawnGlider(_world);
+                        break;
+                    case 'n':
+                        SpawnNoise(_world);
+                        break;
+                    case 'c':
+                        KillEverything(_world);
+                        break;
                     default:
                         break;
                 }
@@ -150,6 +139,52 @@ namespace GameOfLife
         {
             _world.Tick();
             _tick++;
+        }
+
+        private static void SpawnNoise(World world)
+        {
+            var rng = new Random();
+            for (var x = 0; x < world.Width; x++)
+            {
+                for (var y = 0; y < world.Height; y++)
+                {
+                    if (rng.Next(2) > 0)
+                    {
+                        world.MakeAlive(x, y);
+                    }
+                    else
+                    {
+                        world.MakeDead(x, y);
+                    }
+                }
+            }
+        }
+
+        private static void SpawnGlider(World world)
+        {
+            for (var x = 0; x < 3; x++)
+            {
+                for (var y = 0; y < 3; y++)
+                {
+                    world.MakeDead(x, y);
+                }
+            }
+            world.MakeAlive(1, 0);
+            world.MakeAlive(2, 1);
+            world.MakeAlive(0, 2);
+            world.MakeAlive(1, 2);
+            world.MakeAlive(2, 2);
+        }
+
+        private static void KillEverything(World world)
+        {
+            for (var x = 0; x < world.Width; x++)
+            {
+                for (var y = 0; y < world.Height; y++)
+                {
+                    world.MakeDead(x, y);
+                }
+            }
         }
     }
 }

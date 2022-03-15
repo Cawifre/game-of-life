@@ -105,10 +105,11 @@ namespace GameOfLife
             }
 
             string AlignRight(object content) => string.Format("{0,30}", content);
+            string GetSpeedString(int speed) => speed > 5 ? "MAX" : Convert.ToString(speed);
 
             frame.AppendLine();
             frame.AppendLine($"tick:             {AlignRight(_tick)}");
-            frame.AppendLine($"speed:            {AlignRight(_speed)}");
+            frame.AppendLine($"speed:            {AlignRight(GetSpeedString(_speed))}");
             frame.AppendLine();
             frame.AppendLine($"population:       {AlignRight(_world.Population)}");
             frame.AppendLine($"rolling avg-3:    {AlignRight((int)_populationHistory.TakeLast(3).Average())}");
@@ -158,7 +159,13 @@ namespace GameOfLife
 
         private static void HoldFrame()
         {
-            var speedDelayMillisecondsMap = new[] { 1000, 1000, 500, 250, 100, 10 };
+            if (_speed > 5)
+            {
+                // Max speed
+                return;
+            }
+
+            var speedDelayMillisecondsMap = new [] { 1000, 1000, 500, 250, 100, 10 };
 
             // Slow down to let people watch
             Thread.Sleep(speedDelayMillisecondsMap[_speed]);
@@ -170,17 +177,12 @@ namespace GameOfLife
 
         private static int ClampSpeed(int speed)
         {
-            if (speed < 0)
+            return speed switch
             {
-                return 0;
-            }
-
-            if (speed > 5)
-            {
-                return 5;
-            }
-
-            return speed;
+                < 0 => 0,
+                > 5 => 6,
+                _ => speed
+            };
         }
 
         private static void SpawnNoise(World world)

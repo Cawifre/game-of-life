@@ -3,14 +3,14 @@ using System.Text;
 
 namespace GameOfLife
 {
-    public sealed class Program
+    public static class Program
     {
-        private static int _tick = 0;
-        private static bool _doExit = false;
+        private static int _tick;
+        private static bool _doExit;
         private static int _speed = 1; 
-        private static ConcurrentQueue<ConsoleKeyInfo> _keyBuffer = new ConcurrentQueue<ConsoleKeyInfo>();
-        private static readonly List<int> _populationHistory = new List<int>();
-        private static readonly World _world = BuildWorld();
+        private static readonly ConcurrentQueue<ConsoleKeyInfo> KeyBuffer = new();
+        private static readonly List<int> PopulationHistory = new();
+        private static readonly World World = BuildWorld();
 
         public static void Main()
         {
@@ -43,16 +43,16 @@ namespace GameOfLife
         {
             Task.Factory.StartNew(() =>
             {
-                while (true)
+                while (!_doExit)
                 {
-                    _keyBuffer.Enqueue(Console.ReadKey(true));
+                    KeyBuffer.Enqueue(Console.ReadKey(true));
                 }
             });
         }
 
         private static void FlushInput()
         {
-            while(_keyBuffer.TryDequeue(out var keyInfo))
+            while(KeyBuffer.TryDequeue(out var keyInfo))
             {
                 switch(keyInfo.KeyChar)
                 {
@@ -60,21 +60,19 @@ namespace GameOfLife
                         _doExit = true;
                         return;
                     case 'g':
-                        SpawnGlider(_world);
+                        SpawnGlider(World);
                         break;
                     case 'n':
-                        SpawnNoise(_world);
+                        SpawnNoise(World);
                         break;
                     case 'c':
-                        KillEverything(_world);
+                        KillEverything(World);
                         break;
                     case '+':
                         GoFaster();
                         break;
                     case '-':
                         GoSlower();
-                        break;
-                    default:
                         break;
                 }
             }
@@ -87,37 +85,47 @@ namespace GameOfLife
                 return;
             }
 
-            _populationHistory.Add(_world.Population);
+            PopulationHistory.Add(World.Population);
         }
 
         private static string BuildFrame()
         {
             var frame = new StringBuilder();
 
-            for (var y = 0; y < _world.Height; y++)
+            for (var y = 0; y < World.Height; y++)
             {
-                var line = new char[_world.Width];
-                for (var x = 0; x < _world.Width; x++)
+                var line = new char[World.Width];
+                for (var x = 0; x < World.Width; x++)
                 {
-                    line[x] = _world.IsAlive(x, y) ? 'X' : '-';
+                    line[x] = World.IsAlive(x, y) ? 'X' : '-';
                 }
                 frame.AppendLine(new string(line));
             }
 
-            string AlignRight(object content) => string.Format("{0,30}", content);
+            var rollingData = new
+            {
+                avg3 = (int)PopulationHistory.TakeLast(3).Average(),
+                avg5 = (int)PopulationHistory.TakeLast(5).Average(),
+                avg10 = (int)PopulationHistory.TakeLast(10).Average(),
+                avg100 = (int)PopulationHistory.TakeLast(100).Average(),
+                avg500 = (int)PopulationHistory.TakeLast(500).Average(),
+                avg1000 = (int)PopulationHistory.TakeLast(1000).Average()
+            };
+
             string GetSpeedString(int speed) => speed > 5 ? "MAX" : Convert.ToString(speed);
 
+            const int valuesAreaWidth = 30;
             frame.AppendLine();
-            frame.AppendLine($"tick:             {AlignRight(_tick)}");
-            frame.AppendLine($"speed:            {AlignRight(GetSpeedString(_speed))}");
+            frame.AppendLine($"tick:             {_tick,valuesAreaWidth}");
+            frame.AppendLine($"speed:            {GetSpeedString(_speed),valuesAreaWidth}");
             frame.AppendLine();
-            frame.AppendLine($"population:       {AlignRight(_world.Population)}");
-            frame.AppendLine($"rolling avg-3:    {AlignRight((int)_populationHistory.TakeLast(3).Average())}");
-            frame.AppendLine($"rolling avg-5:    {AlignRight((int)_populationHistory.TakeLast(5).Average())}");
-            frame.AppendLine($"rolling avg-10:   {AlignRight((int)_populationHistory.TakeLast(10).Average())}");
-            frame.AppendLine($"rolling avg-100:  {AlignRight((int)_populationHistory.TakeLast(100).Average())}");
-            frame.AppendLine($"rolling avg-500:  {AlignRight((int)_populationHistory.TakeLast(500).Average())}");
-            frame.AppendLine($"rolling avg-1000: {AlignRight((int)_populationHistory.TakeLast(1000).Average())}");
+            frame.AppendLine($"population:       {World.Population,valuesAreaWidth}");
+            frame.AppendLine($"rolling avg-3:    {rollingData.avg3,valuesAreaWidth}");
+            frame.AppendLine($"rolling avg-5:    {rollingData.avg5,valuesAreaWidth}");
+            frame.AppendLine($"rolling avg-10:   {rollingData.avg10,valuesAreaWidth}");
+            frame.AppendLine($"rolling avg-100:  {rollingData.avg100,valuesAreaWidth}");
+            frame.AppendLine($"rolling avg-500:  {rollingData.avg500,valuesAreaWidth}");
+            frame.AppendLine($"rolling avg-1000: {rollingData.avg1000,valuesAreaWidth}");
 
             return frame.ToString();
         }
@@ -139,7 +147,7 @@ namespace GameOfLife
                 {
                     break;
                 }
-                clamped.AppendLine(line.Length > maxWidth ? line.Substring(0, maxWidth) : line);
+                clamped.AppendLine(line.Length > maxWidth ? line[..maxWidth] : line);
                 lines++;
             }
 
@@ -153,7 +161,7 @@ namespace GameOfLife
                 return;
             }
 
-            _world.Tick();
+            World.Tick();
             _tick++;
         }
 

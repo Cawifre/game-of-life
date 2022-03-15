@@ -50,34 +50,24 @@ namespace GameOfLife
                 bool aliveNext;
                 if (alive)
                 {
-                    if (localPopulation < 2)
+                    switch (localPopulation)
                     {
-                        // Any live cell with fewer than two live neighbors dies, as if caused by under-population.
-                        aliveNext = false;
-                    }
-                    else if (localPopulation > 3)
-                    {
-                        // Any live cell with more than three live neighbors dies, as if by over-population.
-                        aliveNext = false;
-                    }
-                    else
-                    {
-                        // Any live cell with two or three live neighbors lives on to the next generation.
-                        aliveNext = true;
+                        case < 2:
+                            // Any live cell with more than three live neighbors dies, as if by over-population.
+                        case > 3:
+                            // Any live cell with fewer than two live neighbors dies, as if caused by under-population.
+                            aliveNext = false;
+                            break;
+                        default:
+                            // Any live cell with two or three live neighbors lives on to the next generation.
+                            aliveNext = true;
+                            break;
                     }
                 }
                 else
                 {
-                    if (localPopulation == 3)
-                    {
-                        // Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
-                        aliveNext = true;
-                    }
-                    else
-                    {
-                        // Dead things usually stay dead
-                        aliveNext = false;
-                    }
+                    // Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
+                    aliveNext = localPopulation == 3;
                 }
 
                 nextGeneration[i] = aliveNext;
@@ -121,7 +111,7 @@ namespace GameOfLife
 
         private IEnumerable<bool> Neighbors(int x, int y)
         {
-            if (!TryNormalizeCoords(x, y, out var normalized))
+            if (!TryNormalizeCoords(x, y, out _))
             {
                 yield break;
             }

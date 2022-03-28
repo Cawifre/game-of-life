@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using GameOfLife.Console;
 
 namespace GameOfLife
@@ -12,6 +13,17 @@ namespace GameOfLife
         private static readonly Func<IConsoleLayoutContentNode> GenerateDisplayContent =
             ConsoleGraphicsDriver.Build(Game);
 
+        private static int MsPerTick => Game.Speed switch
+        {
+            0 => int.MaxValue,
+            1 => 1_000,
+            2 => 500,
+            3 => 100,
+            4 => 10,
+            5 => 1,
+            _ => throw new NotImplementedException()
+        };
+
         public static void Main()
         {
             System.Console.Clear();
@@ -22,17 +34,41 @@ namespace GameOfLife
         {
             BeginBufferingInput();
 
-            Game.SpawnNoise();
-            Draw();
-            HoldFrame();
-            FlushInput();
+            var stopwatch = Stopwatch.StartNew();
 
+            var clockPrevious = DateTime.Now;
+            var clockLag = TimeSpan.Zero;
             while (!_doExit)
             {
-                Game.NextTick();
-                Draw();
-                HoldFrame();
+                var clockCurrent = DateTime.Now;
+                var clockElapsed = clockCurrent - clockPrevious;
+                clockPrevious = clockCurrent;
+                clockLag += clockElapsed;
+
                 FlushInput();
+
+                if (Game.Speed > 0)
+                {
+                    stopwatch.Restart();
+                    var ticksElapsed = 0;
+                    
+                    var tickLength = TimeSpan.FromMilliseconds(MsPerTick);
+                    while (clockLag >= tickLength)
+                    {
+                        Game.NextTick();
+                        clockLag -= tickLength;
+                        ticksElapsed++;
+                    }
+
+                    Debug.WriteLine($"Performed {ticksElapsed} ticks in {stopwatch.ElapsedMilliseconds} ms");
+                }
+                else
+                {
+                    clockLag = TimeSpan.Zero;
+                    Debug.WriteLine($"Game paused for {stopwatch.ElapsedMilliseconds} ms");
+                }
+
+                Render();
             }
         }
 
@@ -77,24 +113,10 @@ namespace GameOfLife
             }
         }
 
-        private static void Draw()
+        private static void Render()
         {
             var content = GenerateDisplayContent();
             ConsoleGraphicsDriver.Draw(content);
-        }
-
-        private static void HoldFrame()
-        {
-            if (Game.Speed > 5)
-            {
-                // Max speed
-                return;
-            }
-
-            var speedDelayMillisecondsMap = new[] {1000, 1000, 500, 250, 100, 10};
-
-            // Slow down to let people watch
-            Thread.Sleep(speedDelayMillisecondsMap[Game.Speed]);
         }
     }
 }

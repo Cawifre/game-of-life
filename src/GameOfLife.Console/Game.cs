@@ -4,7 +4,7 @@ public sealed class Game
 {
     private const int SpeedMin = 0;
     private const int SpeedStart = 1;
-    private const int SpeedMax = 6;
+    private const int SpeedMax = 5;
 
     private readonly Random _rng = new();
 

@@ -1,0 +1,6 @@
+# DotNet Build Stuff
+bin/
+obj/
+
+# JetBrains/Rider Stuff
+.idea/

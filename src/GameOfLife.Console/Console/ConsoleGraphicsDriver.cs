@@ -15,7 +15,7 @@ public static class ConsoleGraphicsDriver
 
         var world = game.World;
 
-        var worldContent = new ConsoleLayoutContent
+        var worldContent = new ConsoleLayoutContent("world")
         {
             Width = world.Width,
             Height = world.Height,
@@ -41,7 +41,7 @@ public static class ConsoleGraphicsDriver
         };
 
         var stateInfoWidth = worldContent.Width;
-        var stateInfoContent = new ConsoleLayoutContent
+        var stateInfoContent = new ConsoleLayoutContent("state-info")
         {
             Width = stateInfoWidth,
             Height = 3,
@@ -51,7 +51,7 @@ public static class ConsoleGraphicsDriver
             Content = () =>
             {
                 var info = $" Tick: {game.Tick}   Speed: {game.Speed}   Population: {game.World.Population} ";
-                
+
                 var blankLine = Enumerable.Repeat(' ', stateInfoWidth).ToList();
                 var padding = Enumerable.Repeat(' ', stateInfoWidth - info.Length);
                 return blankLine.Concat(info).Concat(padding).Concat(blankLine);
@@ -59,7 +59,7 @@ public static class ConsoleGraphicsDriver
         };
 
         var controlsInfoWidth = worldContent.Width;
-        var controlsInfoContent = new ConsoleLayoutContent
+        var controlsInfoContent = new ConsoleLayoutContent("controls")
         {
             Width = controlsInfoWidth,
             Height = 3,
@@ -68,7 +68,8 @@ public static class ConsoleGraphicsDriver
             ZIndex = 101,
             Content = () =>
             {
-                const string info = " [+] Faster | [-] Slower | [c] Clear | [g] Spawn Glider | [n] Spawn Noise | [q] Quit ";
+                const string info =
+                    " [+] Faster | [-] Slower | [c] Clear | [g] Spawn Glider | [n] Spawn Noise | [q] Quit ";
                 if (info.Length > controlsInfoWidth)
                 {
                     return info.Take(controlsInfoWidth);
@@ -82,9 +83,9 @@ public static class ConsoleGraphicsDriver
 
         var layoutWidth = worldContent.Width + 2;
         var layoutHeight = worldContent.Height + 8;
-        
+
         const char backgroundChar = '▓';
-        var backgroundContent = new ConsoleLayoutContent
+        var backgroundContent = new ConsoleLayoutContent("background")
         {
             Width = layoutWidth,
             Height = layoutHeight,
@@ -92,7 +93,7 @@ public static class ConsoleGraphicsDriver
             Content = () => Enumerable.Repeat(backgroundChar, layoutWidth * layoutHeight)
         };
 
-        var layout = new ConsoleLayoutContainer
+        var layout = new ConsoleLayoutContainer("root")
         {
             Width = layoutWidth,
             Height = layoutHeight,
@@ -113,39 +114,43 @@ public static class ConsoleGraphicsDriver
         var x = 0;
         var y = 0;
         var line = new char[content.Width];
-        
+
         System.Console.SetCursorPosition(content.OffsetX, content.OffsetY);
-        
+
         foreach (var symbol in content.Content())
         {
+            if (y >= content.Height)
+            {
+                Debug.WriteLine($"Attempted to draw content outside of declared bounds [content={content.Name}]");
+                break;
+            }
+            
+            // Stage symbol in it's place in the current line
             line[x] = symbol;
+            
+            // Move horizontally
             x++;
 
             if (x < content.Width)
             {
+                // Still on the same line... take another symbol
                 continue;
             }
-            
+
+            // We've passed the end of the line we're building... render it to the console before we move on
+            var left = content.OffsetX;
+            var top = y + content.OffsetY;
+            if (left >= System.Console.WindowWidth || top >= System.Console.WindowHeight)
+            {
+                Debug.WriteLine($"Attempted to draw content outside of console bounds [content={content.Name}]");
+                break;
+            }
+            System.Console.SetCursorPosition(left, top);
             System.Console.Write(new string(line));
+            
+            // Reset horizontally and move vertically
             x = 0;
             y++;
-
-            if (y < content.Height)
-            {
-                var nextLeft = content.OffsetX;
-                var nextTop = y + content.OffsetY;
-
-                if (nextLeft < System.Console.WindowWidth && nextTop < System.Console.WindowHeight)
-                {
-                    System.Console.SetCursorPosition(nextLeft, nextTop);
-                    continue;
-                }
-                
-                Debug.WriteLine("Attempted to draw content outside of console bounds");
-            }
-
-            Debug.WriteLine("Attempted to draw content outside of declared bounds");
-            break;
         }
     }
 
@@ -162,7 +167,7 @@ public static class ConsoleGraphicsDriver
     private static IConsoleLayoutContentNode Collapse(IConsoleLayoutContainerNode container)
     {
         const char blankChar = ' ';
-        
+
         // Start everything with 2d array of blanks
         var cells = new char[container.Width, container.Height];
         for (var y = 0; y < container.Height; y++)
@@ -178,47 +183,49 @@ public static class ConsoleGraphicsDriver
         {
             var x = child.OffsetX;
             var y = child.OffsetY;
+            var xMax = child.OffsetX + child.Width;
+            var yMax = child.OffsetY + child.Height;
 
             foreach (var symbol in Collapse(child).Content())
             {
+                if (x >= container.Width)
+                {
+                    // We are about to overflow the output area... bail out
+                    Debug.WriteLine(
+                        $"Attempted to flatten content outside of container horizontal bounds [container={container.Name}, child={child.Name}]");
+                    break;
+                }
+
+                if (y >= container.Height)
+                {
+                    // We are about to overflow the output area... bail out
+                    Debug.WriteLine(
+                        $"Attempted to flatten content outside of container vertical bounds [container={container.Name}, child={child.Name}]");
+                    break;
+                }
+
+                if (y >= yMax)
+                {
+                    // Something has gone wrong and there is too much content
+                    Debug.WriteLine(
+                        $"Attempted to flatten container content exceeding declared dimensions [container={container.Name}, child={child.Name}]");
+                    break;
+                }
+
                 cells[x, y] = symbol;
 
                 // Move horizontally
                 x++;
 
-                if (x < child.OffsetX + child.Width)
+                if (x < xMax)
                 {
-                    if (x < container.Width)
-                    {
-                        // Still within our horizontal bounds... keep going
-                        continue;
-                    }
-                    
-                    // We are about to overflow the output area... bail out
-                    Debug.WriteLine("Attempted to draw content outside of container horizontal bounds");
-                    break;
+                    // Still within our horizontal bounds... keep going
+                    continue;
                 }
-                
+
                 // Move vertically and reset horizontally
                 x = child.OffsetX;
                 y++;
-
-                if (y < child.OffsetY + child.Height)
-                {
-                    if (y < container.Height)
-                    {
-                        // Still within our vertical bounds... keep going
-                        continue;
-                    }
-                    
-                    // We are about to overflow the output area... bail out
-                    Debug.WriteLine("Attempted to draw content outside of container vertical bounds");
-                    break;
-                }
-                
-                // Something has gone wrong and there is too much content
-                Debug.WriteLine("Encountered container content exceeding declared dimensions");
-                break;
             }
         }
 
@@ -232,7 +239,7 @@ public static class ConsoleGraphicsDriver
             }
         }
 
-        return new ConsoleLayoutContent
+        return new ConsoleLayoutContent($"{container.Name}-flattened")
         {
             Width = container.Width,
             Height = container.Height,
@@ -242,4 +249,3 @@ public static class ConsoleGraphicsDriver
         };
     }
 }
-

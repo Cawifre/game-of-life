@@ -1,4 +1,4 @@
-namespace GameOfLife;
+namespace GameOfLife.Console.Simulation;
 
 public sealed class Game
 {

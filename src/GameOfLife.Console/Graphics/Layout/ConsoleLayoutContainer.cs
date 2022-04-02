@@ -1,4 +1,6 @@
-namespace GameOfLife.Console;
+using GameOfLife.Console.Graphics.Layout.Interface;
+
+namespace GameOfLife.Console.Graphics.Layout;
 
 public class ConsoleLayoutContainer : IConsoleLayoutContainerNode
 {

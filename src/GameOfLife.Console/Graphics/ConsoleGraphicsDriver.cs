@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.Text;
+using GameOfLife.Console.Graphics.Layout;
+using GameOfLife.Console.Graphics.Layout.Interface;
+using GameOfLife.Console.Simulation;
 
-namespace GameOfLife.Console;
+namespace GameOfLife.Console.Graphics;
 
 public static class ConsoleGraphicsDriver
 {

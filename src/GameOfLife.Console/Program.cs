@@ -1,122 +1,123 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
-using GameOfLife.Console;
+using GameOfLife.Console.Graphics;
+using GameOfLife.Console.Graphics.Layout.Interface;
+using GameOfLife.Console.Simulation;
 
-namespace GameOfLife
+namespace GameOfLife.Console;
+
+public static class Program
 {
-    public static class Program
+    private static bool _doExit;
+    private static readonly ConcurrentQueue<ConsoleKeyInfo> KeyBuffer = new();
+    private static readonly Game Game = new(BuildWorld());
+
+    private static readonly Func<IConsoleLayoutContentNode> GenerateDisplayContent =
+        ConsoleGraphicsDriver.Build(Game);
+
+    private static int MsPerTick => Game.Speed switch
     {
-        private static bool _doExit;
-        private static readonly ConcurrentQueue<ConsoleKeyInfo> KeyBuffer = new();
-        private static readonly Game Game = new(BuildWorld());
+        0 => int.MaxValue,
+        1 => 1_000,
+        2 => 500,
+        3 => 100,
+        4 => 10,
+        5 => 1,
+        _ => throw new NotImplementedException()
+    };
 
-        private static readonly Func<IConsoleLayoutContentNode> GenerateDisplayContent =
-            ConsoleGraphicsDriver.Build(Game);
+    public static void Main()
+    {
+        System.Console.Clear();
+        RunGame();
+    }
 
-        private static int MsPerTick => Game.Speed switch
+    private static void RunGame()
+    {
+        BeginBufferingInput();
+
+        var stopwatch = Stopwatch.StartNew();
+
+        var clockPrevious = DateTime.Now;
+        var clockLag = TimeSpan.Zero;
+        while (!_doExit)
         {
-            0 => int.MaxValue,
-            1 => 1_000,
-            2 => 500,
-            3 => 100,
-            4 => 10,
-            5 => 1,
-            _ => throw new NotImplementedException()
-        };
+            var clockCurrent = DateTime.Now;
+            var clockElapsed = clockCurrent - clockPrevious;
+            clockPrevious = clockCurrent;
+            clockLag += clockElapsed;
 
-        public static void Main()
-        {
-            System.Console.Clear();
-            RunGame();
+            FlushInput();
+
+            if (Game.Speed > 0)
+            {
+                stopwatch.Restart();
+                var ticksElapsed = 0;
+
+                var tickLength = TimeSpan.FromMilliseconds(MsPerTick);
+                while (clockLag >= tickLength)
+                {
+                    Game.NextTick();
+                    clockLag -= tickLength;
+                    ticksElapsed++;
+                }
+
+                Debug.WriteLine($"Performed {ticksElapsed} ticks in {stopwatch.ElapsedMilliseconds} ms");
+            }
+            else
+            {
+                clockLag = TimeSpan.Zero;
+                Debug.WriteLine($"Game paused for {stopwatch.ElapsedMilliseconds} ms");
+            }
+
+            Render();
         }
+    }
 
-        private static void RunGame()
+    private static World BuildWorld() => new(100, 25);
+
+    private static void BeginBufferingInput()
+    {
+        Task.Factory.StartNew(() =>
         {
-            BeginBufferingInput();
-
-            var stopwatch = Stopwatch.StartNew();
-
-            var clockPrevious = DateTime.Now;
-            var clockLag = TimeSpan.Zero;
             while (!_doExit)
             {
-                var clockCurrent = DateTime.Now;
-                var clockElapsed = clockCurrent - clockPrevious;
-                clockPrevious = clockCurrent;
-                clockLag += clockElapsed;
+                KeyBuffer.Enqueue(System.Console.ReadKey(true));
+            }
+        });
+    }
 
-                FlushInput();
-
-                if (Game.Speed > 0)
-                {
-                    stopwatch.Restart();
-                    var ticksElapsed = 0;
-                    
-                    var tickLength = TimeSpan.FromMilliseconds(MsPerTick);
-                    while (clockLag >= tickLength)
-                    {
-                        Game.NextTick();
-                        clockLag -= tickLength;
-                        ticksElapsed++;
-                    }
-
-                    Debug.WriteLine($"Performed {ticksElapsed} ticks in {stopwatch.ElapsedMilliseconds} ms");
-                }
-                else
-                {
-                    clockLag = TimeSpan.Zero;
-                    Debug.WriteLine($"Game paused for {stopwatch.ElapsedMilliseconds} ms");
-                }
-
-                Render();
+    private static void FlushInput()
+    {
+        while (KeyBuffer.TryDequeue(out var keyInfo))
+        {
+            switch (keyInfo.KeyChar)
+            {
+                case 'q':
+                    _doExit = true;
+                    return;
+                case 'g':
+                    Game.SpawnGlider();
+                    break;
+                case 'n':
+                    Game.SpawnNoise();
+                    break;
+                case 'c':
+                    Game.KillEverything();
+                    break;
+                case '+':
+                    Game.Faster();
+                    break;
+                case '-':
+                    Game.Slower();
+                    break;
             }
         }
+    }
 
-        private static World BuildWorld() => new(100, 25);
-
-        private static void BeginBufferingInput()
-        {
-            Task.Factory.StartNew(() =>
-            {
-                while (!_doExit)
-                {
-                    KeyBuffer.Enqueue(System.Console.ReadKey(true));
-                }
-            });
-        }
-
-        private static void FlushInput()
-        {
-            while (KeyBuffer.TryDequeue(out var keyInfo))
-            {
-                switch (keyInfo.KeyChar)
-                {
-                    case 'q':
-                        _doExit = true;
-                        return;
-                    case 'g':
-                        Game.SpawnGlider();
-                        break;
-                    case 'n':
-                        Game.SpawnNoise();
-                        break;
-                    case 'c':
-                        Game.KillEverything();
-                        break;
-                    case '+':
-                        Game.Faster();
-                        break;
-                    case '-':
-                        Game.Slower();
-                        break;
-                }
-            }
-        }
-
-        private static void Render()
-        {
-            var content = GenerateDisplayContent();
-            ConsoleGraphicsDriver.Draw(content);
-        }
+    private static void Render()
+    {
+        var content = GenerateDisplayContent();
+        ConsoleGraphicsDriver.Draw(content);
     }
 }

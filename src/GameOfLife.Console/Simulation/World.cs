@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace GameOfLife
+namespace GameOfLife.Console.Simulation
 {
     public sealed class World
     {

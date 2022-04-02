@@ -1,131 +1,130 @@
 using System.Collections;
 
-namespace GameOfLife.Console.Simulation
+namespace GameOfLife.Console.Simulation;
+
+public sealed class World
 {
-    public sealed class World
+    public int Width { get; }
+    public int Height { get; }
+
+    public int Population
     {
-        public int Width { get; }
-        public int Height { get; }
-
-        public int Population
+        get
         {
-            get
+            var val = 0;
+            for (var x = 0; x < Width; x++)
             {
-                var val = 0;
-                for (var x = 0; x < Width; x++)
+                for (var y = 0; y < Height; y++)
                 {
-                    for (var y = 0; y < Height; y++)
+                    if (IsAlive(x, y))
                     {
-                        if (IsAlive(x, y))
-                        {
-                            val++;
-                        }
+                        val++;
                     }
                 }
-                return val;
             }
+            return val;
         }
+    }
 
-        private BitArray _cells;
+    private BitArray _cells;
 
-        public World(int width, int height)
+    public World(int width, int height)
+    {
+        Width = width;
+        Height = height;
+        _cells = new BitArray(Width * Height);
+    }
+
+    public void Tick()
+    {
+        var nextGeneration = new BitArray(_cells.Length);
+
+        for (var i = 0; i < _cells.Length; i++)
         {
-            Width = width;
-            Height = height;
-            _cells = new BitArray(Width * Height);
-        }
+            var y = i / Width;
+            var x = i - y * Width;
 
-        public void Tick()
-        {
-            var nextGeneration = new BitArray(_cells.Length);
+            var alive = IsAlive(x, y);
+            var localPopulation = LiveNeighborCount(x, y);
 
-            for (var i = 0; i < _cells.Length; i++)
+            bool aliveNext;
+            if (alive)
             {
-                var y = i / Width;
-                var x = i - y * Width;
-
-                var alive = IsAlive(x, y);
-                var localPopulation = LiveNeighborCount(x, y);
-
-                bool aliveNext;
-                if (alive)
+                switch (localPopulation)
                 {
-                    switch (localPopulation)
-                    {
-                        case < 2:
-                            // Any live cell with more than three live neighbors dies, as if by over-population.
-                        case > 3:
-                            // Any live cell with fewer than two live neighbors dies, as if caused by under-population.
-                            aliveNext = false;
-                            break;
-                        default:
-                            // Any live cell with two or three live neighbors lives on to the next generation.
-                            aliveNext = true;
-                            break;
-                    }
+                    case < 2:
+                    // Any live cell with more than three live neighbors dies, as if by over-population.
+                    case > 3:
+                        // Any live cell with fewer than two live neighbors dies, as if caused by under-population.
+                        aliveNext = false;
+                        break;
+                    default:
+                        // Any live cell with two or three live neighbors lives on to the next generation.
+                        aliveNext = true;
+                        break;
                 }
-                else
-                {
-                    // Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
-                    aliveNext = localPopulation == 3;
-                }
-
-                nextGeneration[i] = aliveNext;
             }
-
-            _cells = nextGeneration;
-        }
-
-        public void MakeAlive(int x, int y)
-        {
-            if (!TryNormalizeCoords(x, y, out var normalized))
+            else
             {
-                return;
+                // Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
+                aliveNext = localPopulation == 3;
             }
-            _cells[normalized] = true;
+
+            nextGeneration[i] = aliveNext;
         }
 
-        public void MakeDead(int x, int y)
+        _cells = nextGeneration;
+    }
+
+    public void MakeAlive(int x, int y)
+    {
+        if (!TryNormalizeCoords(x, y, out var normalized))
         {
-            if (!TryNormalizeCoords(x, y, out var normalized))
-            {
-                return;
-            }
-            _cells[normalized] = false;
+            return;
         }
+        _cells[normalized] = true;
+    }
 
-        public bool IsAlive(int x, int y) => TryNormalizeCoords(x, y, out var normalized) && _cells[normalized];
-
-        private bool TryNormalizeCoords(int x, int y, out int index)
+    public void MakeDead(int x, int y)
+    {
+        if (!TryNormalizeCoords(x, y, out var normalized))
         {
-            if (x < 0 || x >= Width || y < 0 || y >= Height)
-            {
-                index = -1;
-                return false;
-            }
-            index = x + Width * y;
-            return true;
+            return;
         }
+        _cells[normalized] = false;
+    }
 
-        private int LiveNeighborCount(int x, int y) => Neighbors(x, y).Count(isAlive => isAlive);
+    public bool IsAlive(int x, int y) => TryNormalizeCoords(x, y, out var normalized) && _cells[normalized];
 
-        private IEnumerable<bool> Neighbors(int x, int y)
+    private bool TryNormalizeCoords(int x, int y, out int index)
+    {
+        if (x < 0 || x >= Width || y < 0 || y >= Height)
         {
-            if (!TryNormalizeCoords(x, y, out _))
-            {
-                yield break;
-            }
-
-            yield return IsAlive(x - 1, y - 1);
-            yield return IsAlive(x - 1, y);
-            yield return IsAlive(x - 1, y + 1);
-
-            yield return IsAlive(x, y - 1);
-            yield return IsAlive(x, y + 1);
-
-            yield return IsAlive(x + 1, y - 1);
-            yield return IsAlive(x + 1, y);
-            yield return IsAlive(x + 1, y + 1);
+            index = -1;
+            return false;
         }
+        index = x + Width * y;
+        return true;
+    }
+
+    private int LiveNeighborCount(int x, int y) => Neighbors(x, y).Count(isAlive => isAlive);
+
+    private IEnumerable<bool> Neighbors(int x, int y)
+    {
+        if (!TryNormalizeCoords(x, y, out _))
+        {
+            yield break;
+        }
+
+        yield return IsAlive(x - 1, y - 1);
+        yield return IsAlive(x - 1, y);
+        yield return IsAlive(x - 1, y + 1);
+
+        yield return IsAlive(x, y - 1);
+        yield return IsAlive(x, y + 1);
+
+        yield return IsAlive(x + 1, y - 1);
+        yield return IsAlive(x + 1, y);
+        yield return IsAlive(x + 1, y + 1);
     }
 }
